@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/fundo">
+
+    <com.tempocongelado.app.DriftView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="32dp">
+
+        <TextView
+            android:id="@+id/tvTitulo1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:letterSpacing="0.14"
+            android:text="TEMPO"
+            android:textColor="@color/escuro"
+            android:textSize="54sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvTitulo2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:letterSpacing="0.14"
+            android:text="CONGELADO"
+            android:textColor="@color/vermelho"
+            android:textSize="38sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvSub"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:gravity="center"
+            android:text="O tempo só anda quando você se mexe."
+            android:textColor="@color/cinza"
+            android:textSize="15sp" />
+
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="44dp" />
+
+        <TextView
+            android:id="@+id/btnJogar"
+            style="@style/BotaoPrimario"
+            android:layout_width="270dp"
+            android:layout_height="56dp"
+            android:text="JOGAR" />
+
+        <TextView
+            android:id="@+id/btnComo"
+            style="@style/Botao"
+            android:layout_width="270dp"
+            android:layout_height="52dp"
+            android:layout_marginTop="14dp"
+            android:text="COMO JOGAR" />
+
+        <TextView
+            android:id="@+id/btnConfig"
+            style="@style/Botao"
+            android:layout_width="270dp"
+            android:layout_height="52dp"
+            android:layout_marginTop="14dp"
+            android:text="CONFIGURAÇÕES" />
+
+        <TextView
+            android:id="@+id/tvRecorde"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:gravity="center"
+            android:textColor="@color/escuro"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tvVersao"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="18dp"
+        android:textColor="@color/cinza"
+        android:textSize="12sp" />
+</FrameLayout>

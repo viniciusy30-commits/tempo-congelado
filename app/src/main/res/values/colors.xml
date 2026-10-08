@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="fundo">#EEF0F4</color>
+    <color name="escuro">#15171C</color>
+    <color name="vermelho">#E5322D</color>
+    <color name="cinza">#6B7280</color>
+    <color name="branco">#FFFFFF</color>
+</resources>

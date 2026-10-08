@@ -1,0 +1,7 @@
+#id 2026-10-08-a
+#titulo Primeira versão
+- Roguelike de tiro onde o tempo só anda quando você se mexe
+- Arraste na metade esquerda para mover, toque na direita para atirar
+- Salas com atiradores, perseguidores, brutamontes e chefes a cada 5 salas
+- 9 melhorias para montar sua build a cada sala limpa
+- Atualização pelo próprio app (Configurações > Verificar atualização)
