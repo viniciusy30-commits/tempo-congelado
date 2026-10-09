@@ -48,9 +48,10 @@ class MainActivity : AppCompatActivity() {
         AlertDialog.Builder(this)
             .setTitle("Como jogar")
             .setMessage(
-                "• O tempo só anda quando você se mexe. Parado, tudo quase congela.\n\n" +
-                    "• Arraste o dedo na METADE ESQUERDA da tela para mover. Quanto mais longe do ponto inicial, mais rápido o tempo corre.\n\n" +
-                    "• Toque (ou segure) na METADE DIREITA para atirar naquela direção.\n\n" +
+                "• O tempo só anda quando você se mexe (andar ou girar a câmera). Parado, tudo quase congela.\n\n" +
+                    "• Arraste o dedo na ESQUERDA da tela para andar. Quanto mais longe do ponto inicial, mais rápido você e o tempo vão.\n\n" +
+                    "• Arraste na DIREITA para olhar em volta.\n\n" +
+                    "• Segure o botão vermelho para atirar. Dá para mirar arrastando o dedo que está nele.\n\n" +
                     "• Qualquer tiro inimigo ou encostão pode te derrubar. Seus tiros também destroem os tiros deles.\n\n" +
                     "• Limpou a sala? Escolha uma melhoria e siga em frente. A cada 5 salas tem um chefe.\n\n" +
                     "• Morreu? Começa tudo de novo, com outra build."
