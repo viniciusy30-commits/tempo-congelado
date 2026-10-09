@@ -21,7 +21,7 @@ class GameActivity : AppCompatActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        game = Game3D(this, resources.displayMetrics.density)
+        game = Game3D(HostAndroid(this), resources.displayMetrics.density)
 
         glView = GLSurfaceView(this)
         glView.setEGLContextClientVersion(2)

@@ -1,9 +1,5 @@
 package com.tempocongelado.app
 
-import android.content.Context
-import android.os.Build
-import android.os.VibrationEffect
-import android.os.Vibrator
 import java.util.Random
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -23,7 +19,14 @@ import kotlin.math.sqrt
  * Mundo: chão no plano XZ, altura em Y. A sala vai de -10 a 10 em X e Z.
  * yaw = 0 olha para +Z. A direita da câmera é (-cos(yaw), 0, sin(yaw)).
  */
-class Game3D(private val ctx: Context, private val density: Float) {
+class Game3D(private val host: Host, private val density: Float) {
+
+    /** Ponte para o Android (vibração e recorde), para a lógica rodar também fora do celular. */
+    interface Host {
+        fun vibrar(ms: Int)
+        fun registrar(sala: Int, abates: Int)
+    }
+
 
     class Enemy(val type: Int, var x: Float, var z: Float, val scale: Float, var hp: Int) {
         val maxHp = hp
@@ -36,12 +39,11 @@ class Game3D(private val ctx: Context, private val density: Float) {
         var t = 0f
         var walk = 0f
         var shot = 0f
+        var speed = 0f
+        var age = 0f
         val radius: Float get() = 0.42f * scale
         val height: Float get() = 1.95f * scale
         val girth: Float get() = if (type == 2) 1.25f else if (type == 3) 1.15f else 1f
-        fun muzzleX(): Float = e_mx(this)
-        fun muzzleY(): Float = 1.30f * scale
-        fun muzzleZ(): Float = e_mz(this)
     }
 
     class Bullet(
@@ -99,13 +101,6 @@ class Game3D(private val ctx: Context, private val density: Float) {
         const val K_SPARK = 5
         const val K_BRASS = 6
 
-        // posição da boca da arma do inimigo (braço levantado, lado direito dele)
-        fun e_mx(e: Enemy): Float =
-            (-0.34f * e.scale * e.girth) * cos(e.yaw) + 1.03f * e.scale * sin(e.yaw) + e.x
-
-        fun e_mz(e: Enemy): Float =
-            -(-0.34f * e.scale * e.girth) * sin(e.yaw) + 1.03f * e.scale * cos(e.yaw) + e.z
-
         val UPGS = listOf(
             Upg(0, "CADÊNCIA", "Atira 22% mais rápido", 4),
             Upg(1, "TIRO MÚLTIPLO", "+1 projétil em leque", 3),
@@ -133,6 +128,7 @@ class Game3D(private val ctx: Context, private val density: Float) {
 
     private val rng = Random()
     private val tmp = FloatArray(2)
+    private val mzOut = FloatArray(3)
 
     var paused = false
     var state = S_INTRO
@@ -410,6 +406,7 @@ class Game3D(private val ctx: Context, private val density: Float) {
         for (e in enemies) {
             if (e.flash > 0f) e.flash -= dtR
             if (e.shot > 0f) e.shot -= dtR
+            e.age += dtR
         }
 
         val lx = pendLookX
@@ -530,6 +527,7 @@ class Game3D(private val ctx: Context, private val density: Float) {
             if (pierce > 0) b.hits = ArrayList(2)
             bullets.add(b)
         }
+        fx.add(Fx(3, mx, my, mz, 0.5f, 0.12f))
         // cartucho ejetado
         val c = Debris(
             mx + rx * 0.05f, my - 0.03f, mz + rz * 0.05f,
@@ -634,6 +632,7 @@ class Game3D(private val ctx: Context, private val density: Float) {
         e.x = tmp[0]
         e.z = tmp[1]
         e.walk += vel * dt * 3.2f
+        e.speed = (vel * (if (dt > 0f) 1f else 0f) / 3.3f).coerceIn(0f, 1f)
 
         // perseguidor explode no contato
         if (e.type == 1 && dist < e.radius + PR + 0.25f && state == S_PLAY && invuln <= 0f) {
@@ -643,15 +642,17 @@ class Game3D(private val ctx: Context, private val density: Float) {
     }
 
     private fun dispararNoJogador(e: Enemy, vel: Float, qtd: Int, abertura: Float) {
-        val ox = e.muzzleX()
-        val oy = e.muzzleY()
-        val oz = e.muzzleZ()
+        Rig.enemy(null, e, 0f, mzOut)
+        val ox = mzOut[0]
+        val oy = mzOut[1]
+        val oz = mzOut[2]
         val ty = 1.2f
         val hd = max(0.5f, hypot(px - ox, pz - oz))
         val slope = (ty - oy) / hd
         val n = sqrt(1f + slope * slope)
         val base = atan2(px - ox, pz - oz)
         e.shot = 0.3f
+        fx.add(Fx(3, ox, oy, oz, 0.5f, 0.5f))
         faiscas(ox, oy, oz, 8, K_SPARK)
         for (i in 0 until qtd) {
             val a = base + (i - (qtd - 1) / 2f) * abertura
@@ -914,9 +915,11 @@ class Game3D(private val ctx: Context, private val density: Float) {
         val e = enemies.removeAt(idx)
         val n = if (e.type == 3) 70 else if (e.type == 2) 40 else 26
         val tam = 0.09f * max(1f, e.scale)
-        burst(e.x, 0.9f * e.scale, e.z, n, K_RED, 5f, tam * 1.4f, 1)
-        burst(e.x, 0.9f * e.scale, e.z, n / 3, K_DARKRED, 4f, tam * 1.2f, 1)
-        burst(e.x, 1.1f * e.scale, e.z, 6, K_RED, 3f, 0.3f * e.scale, 1)
+        burst(e.x, 1.0f * e.scale, e.z, n, K_RED, 5f, tam * 2.2f, 1)
+        burst(e.x, 0.9f * e.scale, e.z, n / 3, K_DARKRED, 4f, tam * 2.0f, 1)
+        burst(e.x, 1.2f * e.scale, e.z, 8, K_RED, 3.2f, 0.34f * e.scale, 0)
+        burst(e.x, 1.6f * e.scale, e.z, 3, K_WHITE, 2.5f, 0.2f * e.scale, 0)
+        hitStop = max(hitStop, 0.06f)
         burst(e.x, 1.0f * e.scale, e.z, 10, K_SPARK, 4f, 0.07f, 1)
         kills++
         fx.add(Fx(2, e.x, 0.9f * e.scale, e.z, 0.7f, 1.5f * e.scale))
@@ -956,7 +959,7 @@ class Game3D(private val ctx: Context, private val density: Float) {
         burst(px, 1.1f, pz, 40, K_BLACK, 5f, 0.1f, 1)
         burst(px, 1.1f, pz, 14, K_WHITE, 4f, 0.08f, 1)
         vibrar(160)
-        Prefs.registrar(ctx, room, kills)
+        host.registrar(room, kills)
     }
 
     // ------------------------------------------------------------------
@@ -1039,15 +1042,7 @@ class Game3D(private val ctx: Context, private val density: Float) {
         tmp[1] = cz
     }
 
-    @Suppress("DEPRECATION")
     private fun vibrar(ms: Int) {
-        if (!Prefs.vibracao(ctx)) return
-        val v = ctx.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator ?: return
-        val dur = ms.toLong()
-        if (Build.VERSION.SDK_INT >= 26) {
-            v.vibrate(VibrationEffect.createOneShot(dur, VibrationEffect.DEFAULT_AMPLITUDE))
-        } else {
-            v.vibrate(dur)
-        }
+        host.vibrar(ms)
     }
 }

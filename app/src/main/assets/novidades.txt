@@ -1,3 +1,12 @@
+#id 2026-10-09-b
+#titulo Visual ultra detalhado
+- Inimigos refeitos: humanoides de cristal facetado, com cabeça, tronco, braços e pernas articulados e andar de verdade
+- Mira com as duas mãos, recuo e brilho de carga antes de atirar; brutamontes e chefes com visual próprio
+- Pistola detalhada em primeira pessoa com mão enluvada, ferrolho que recua e clarão de tiro em estrela
+- Sala branca de laboratório: painéis, rodapé, colunas, vigas, luminárias, piso de placas e caixotes detalhados
+- Reflexo dos inimigos no chão, sombras de contato e neblina
+- Choque de tiros com explosão, ondas de luz, raios e pausa de impacto; inimigos se estilhaçam em cristais
+
 #id 2026-10-09-a
 #titulo Gráficos redondos e tiros animados
 - Inimigos, pedaços e a arma agora são redondos, com brilho e luz de contorno
