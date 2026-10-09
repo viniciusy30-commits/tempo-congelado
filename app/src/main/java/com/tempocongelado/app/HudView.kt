@@ -101,6 +101,11 @@ class HudView(
                 v.alpha = (255 * (1f - game.timeScale).coerceIn(0f, 1f) * 0.9f).toInt()
                 c.drawRect(0f, 0f, width.toFloat(), height.toFloat(), v)
             }
+            if (game.screenFlash > 0f) {
+                paint.style = Paint.Style.FILL
+                paint.color = Color.argb((110 * game.screenFlash).toInt().coerceIn(0, 255), 255, 236, 205)
+                c.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+            }
             if (game.hurt > 0f) {
                 paint.style = Paint.Style.FILL
                 paint.color = Color.argb((120 * game.hurt).toInt().coerceIn(0, 255), 229, 50, 45)

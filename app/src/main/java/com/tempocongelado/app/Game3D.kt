@@ -35,8 +35,13 @@ class Game3D(private val ctx: Context, private val density: Float) {
         var phase = 0
         var t = 0f
         var walk = 0f
+        var shot = 0f
         val radius: Float get() = 0.42f * scale
         val height: Float get() = 1.95f * scale
+        val girth: Float get() = if (type == 2) 1.25f else if (type == 3) 1.15f else 1f
+        fun muzzleX(): Float = e_mx(this)
+        fun muzzleY(): Float = 1.30f * scale
+        fun muzzleZ(): Float = e_mz(this)
     }
 
     class Bullet(
@@ -56,13 +61,18 @@ class Game3D(private val ctx: Context, private val density: Float) {
     class Debris(
         var x: Float, var y: Float, var z: Float,
         var vx: Float, var vy: Float, var vz: Float,
-        val kind: Int, val size: Float
+        val kind: Int, val size: Float, val shape: Int
     ) {
         var rot = 0f
         var vr = 0f
         var life = 3f
         var maxLife = 3f
         var rest = false
+    }
+
+    /** Efeito visual de curta duração (tempo real): 0 choque de balas, 1 impacto, 2 morte. */
+    class Fx(val kind: Int, val x: Float, val y: Float, val z: Float, val maxT: Float, val size: Float) {
+        var t = 0f
     }
 
     class Block(val x0: Float, val z0: Float, val x1: Float, val z1: Float, val h: Float)
@@ -86,6 +96,15 @@ class Game3D(private val ctx: Context, private val density: Float) {
         const val K_BLACK = 2
         const val K_WHITE = 3
         const val K_GREY = 4
+        const val K_SPARK = 5
+        const val K_BRASS = 6
+
+        // posição da boca da arma do inimigo (braço levantado, lado direito dele)
+        fun e_mx(e: Enemy): Float =
+            (-0.34f * e.scale * e.girth) * cos(e.yaw) + 1.03f * e.scale * sin(e.yaw) + e.x
+
+        fun e_mz(e: Enemy): Float =
+            -(-0.34f * e.scale * e.girth) * sin(e.yaw) + 1.03f * e.scale * cos(e.yaw) + e.z
 
         val UPGS = listOf(
             Upg(0, "CADÊNCIA", "Atira 22% mais rápido", 4),
@@ -108,6 +127,7 @@ class Game3D(private val ctx: Context, private val density: Float) {
     val bullets = ArrayList<Bullet>()
     val debris = ArrayList<Debris>()
     val blocks = ArrayList<Block>()
+    val fx = ArrayList<Fx>()
     val choices = ArrayList<Int>()
     val lv = IntArray(UPGS.size)
 
@@ -131,6 +151,10 @@ class Game3D(private val ctx: Context, private val density: Float) {
     var hitMark = 0f
     var shake = 0f
     var recoil = 0f
+    var flashT = 0f
+    var kick = 0f
+    var screenFlash = 0f
+    private var hitStop = 0f
     var bob = 0f
 
     var timeScale = 0.08f
@@ -249,6 +273,9 @@ class Game3D(private val ctx: Context, private val density: Float) {
         bullets.clear()
         enemies.clear()
         debris.clear()
+        fx.clear()
+        screenFlash = 0f
+        hitStop = 0f
         px = 0f
         pz = -AZ + 2f
         yaw = 0f
@@ -368,9 +395,21 @@ class Game3D(private val ctx: Context, private val density: Float) {
         if (invuln > 0f) invuln -= dtR
         if (hurt > 0f) hurt = max(0f, hurt - dtR * 1.6f)
         if (hitMark > 0f) hitMark -= dtR
-        if (recoil > 0f) recoil = max(0f, recoil - dtR * 6f)
+        if (recoil > 0f) recoil = max(0f, recoil - dtR * 5f)
+        if (flashT > 0f) flashT = max(0f, flashT - dtR)
+        if (kick > 0f) kick = max(0f, kick - dtR * 7f)
+        if (screenFlash > 0f) screenFlash = max(0f, screenFlash - dtR * 3.5f)
+        if (hitStop > 0f) hitStop = max(0f, hitStop - dtR)
+        var fi = fx.size - 1
+        while (fi >= 0) {
+            val f = fx[fi]
+            f.t += dtR
+            if (f.t >= f.maxT) fx.removeAt(fi)
+            fi--
+        }
         for (e in enemies) {
             if (e.flash > 0f) e.flash -= dtR
+            if (e.shot > 0f) e.shot -= dtR
         }
 
         val lx = pendLookX
@@ -423,7 +462,7 @@ class Game3D(private val ctx: Context, private val density: Float) {
             alvo = max(alvo, 0.4f)
         }
         timeScale += (alvo - timeScale) * min(1f, dtR * 12f)
-        val dt = dtR * timeScale
+        val dt = dtR * timeScale * (if (hitStop > 0f) 0.12f else 1f)
 
         // o jogador anda em tempo real; o mundo anda no ritmo do jogador
         if (mag > 0.01f) {
@@ -460,6 +499,8 @@ class Game3D(private val ctx: Context, private val density: Float) {
         boost = 0.3f
         fired = true
         recoil = 1f
+        flashT = 0.09f
+        kick = 1f
         val cp = cos(pitch)
         val fy = sin(pitch)
         val rx = -cos(yaw)
@@ -489,6 +530,18 @@ class Game3D(private val ctx: Context, private val density: Float) {
             if (pierce > 0) b.hits = ArrayList(2)
             bullets.add(b)
         }
+        // cartucho ejetado
+        val c = Debris(
+            mx + rx * 0.05f, my - 0.03f, mz + rz * 0.05f,
+            rx * (1.6f + rng.nextFloat()) + (rng.nextFloat() - 0.5f), 1.6f + rng.nextFloat(),
+            rz * (1.6f + rng.nextFloat()) + (rng.nextFloat() - 0.5f),
+            K_BRASS, 0.045f, 0
+        )
+        c.rot = rng.nextFloat() * 360f
+        c.vr = (rng.nextFloat() - 0.5f) * 1400f
+        c.maxLife = 2.5f
+        c.life = 2.5f
+        debris.add(c)
         vibrar(8)
     }
 
@@ -590,26 +643,28 @@ class Game3D(private val ctx: Context, private val density: Float) {
     }
 
     private fun dispararNoJogador(e: Enemy, vel: Float, qtd: Int, abertura: Float) {
-        val sy = 1.45f * e.scale
+        val ox = e.muzzleX()
+        val oy = e.muzzleY()
+        val oz = e.muzzleZ()
         val ty = 1.2f
-        val hd = max(0.5f, hypot(px - e.x, pz - e.z))
-        val slope = (ty - sy) / hd
+        val hd = max(0.5f, hypot(px - ox, pz - oz))
+        val slope = (ty - oy) / hd
         val n = sqrt(1f + slope * slope)
-        val base = atan2(px - e.x, pz - e.z)
+        val base = atan2(px - ox, pz - oz)
+        e.shot = 0.3f
+        faiscas(ox, oy, oz, 8, K_SPARK)
         for (i in 0 until qtd) {
             val a = base + (i - (qtd - 1) / 2f) * abertura
             val dx = sin(a)
             val dz = cos(a)
-            val b = Bullet(
-                e.x + dx * e.radius * 1.2f, sy, e.z + dz * e.radius * 1.2f,
-                dx * vel / n, slope * vel / n, dz * vel / n, false
-            )
-            b.radius = 0.17f
+            val b = Bullet(ox, oy, oz, dx * vel / n, slope * vel / n, dz * vel / n, false)
+            b.radius = 0.2f
             bullets.add(b)
         }
     }
 
     private fun anel(e: Enemy, vel: Float, qtd: Int) {
+        e.shot = 0.3f
         val inicio = rng.nextFloat() * 6.2831855f
         for (i in 0 until qtd) {
             val a = inicio + i * 6.2831855f / qtd
@@ -619,7 +674,7 @@ class Game3D(private val ctx: Context, private val density: Float) {
                 e.x + dx * e.radius * 1.2f, 1.2f, e.z + dz * e.radius * 1.2f,
                 dx * vel, 0f, dz * vel, false
             )
-            b.radius = 0.17f
+            b.radius = 0.2f
             bullets.add(b)
         }
     }
@@ -735,7 +790,7 @@ class Game3D(private val ctx: Context, private val density: Float) {
                 val lim = b.radius + o.radius + 0.15f
                 if (ddx * ddx + ddy * ddy + ddz * ddz < lim * lim) {
                     o.dead = true
-                    faiscas(o.x, o.y, o.z, 6, K_RED)
+                    choque((b.x + o.x) / 2f, (b.y + o.y) / 2f, (b.z + o.z) / 2f)
                     if (b.pierce <= 0) return true
                 }
             }
@@ -751,6 +806,7 @@ class Game3D(private val ctx: Context, private val density: Float) {
                     e.flash = 0.18f
                     hitMark = 0.18f
                     faiscas(b.x, b.y, b.z, 6, K_RED)
+                    fx.add(Fx(1, b.x, b.y, b.z, 0.3f, 0.5f))
                     if (e.hp <= 0) {
                         matarInimigo(k)
                     } else {
@@ -815,18 +871,18 @@ class Game3D(private val ctx: Context, private val density: Float) {
         }
     }
 
-    private fun burst(x: Float, y: Float, z: Float, n: Int, kind: Int, speed: Float, size: Float) {
+    private fun burst(x: Float, y: Float, z: Float, n: Int, kind: Int, speed: Float, size: Float, shape: Int) {
         for (i in 0 until n) {
             val a = rng.nextFloat() * 6.2831855f
             val v = speed * (0.3f + rng.nextFloat() * 0.9f)
             val s = Debris(
                 x, y, z,
                 cos(a) * v, speed * (0.3f + rng.nextFloat() * 0.9f), sin(a) * v,
-                kind, size * (0.5f + rng.nextFloat())
+                kind, size * (0.5f + rng.nextFloat()), shape
             )
             s.rot = rng.nextFloat() * 360f
             s.vr = (rng.nextFloat() - 0.5f) * 900f
-            s.maxLife = 3f + rng.nextFloat() * 2f
+            s.maxLife = if (kind == K_SPARK) 0.35f + rng.nextFloat() * 0.35f else 3f + rng.nextFloat() * 2f
             s.life = s.maxLife
             debris.add(s)
         }
@@ -834,16 +890,37 @@ class Game3D(private val ctx: Context, private val density: Float) {
     }
 
     private fun faiscas(x: Float, y: Float, z: Float, n: Int, kind: Int) {
-        burst(x, y, z, n, kind, 2.5f, 0.05f)
+        if (kind == K_SPARK) {
+            burst(x, y, z, n, K_SPARK, 3.5f, 0.07f, 1)
+        } else {
+            burst(x, y, z, n, kind, 2.5f, 0.05f, 0)
+            burst(x, y, z, n / 2 + 1, K_SPARK, 3.5f, 0.06f, 1)
+        }
+    }
+
+    /** Tiro do jogador batendo num tiro inimigo: explosão com onda de choque, faíscas e pausa de impacto. */
+    private fun choque(x: Float, y: Float, z: Float) {
+        fx.add(Fx(0, x, y, z, 0.6f, 0.6f))
+        burst(x, y, z, 30, K_SPARK, 6.5f, 0.08f, 1)
+        burst(x, y, z, 8, K_RED, 3.5f, 0.07f, 1)
+        burst(x, y, z, 6, K_WHITE, 3f, 0.05f, 1)
+        screenFlash = max(screenFlash, 0.45f)
+        shake = max(shake, 0.3f)
+        hitStop = 0.07f
+        vibrar(25)
     }
 
     private fun matarInimigo(idx: Int) {
         val e = enemies.removeAt(idx)
         val n = if (e.type == 3) 70 else if (e.type == 2) 40 else 26
         val tam = 0.09f * max(1f, e.scale)
-        burst(e.x, 0.9f * e.scale, e.z, n, K_RED, 5f, tam)
-        burst(e.x, 0.9f * e.scale, e.z, n / 3, K_DARKRED, 4f, tam)
+        burst(e.x, 0.9f * e.scale, e.z, n, K_RED, 5f, tam * 1.4f, 1)
+        burst(e.x, 0.9f * e.scale, e.z, n / 3, K_DARKRED, 4f, tam * 1.2f, 1)
+        burst(e.x, 1.1f * e.scale, e.z, 6, K_RED, 3f, 0.3f * e.scale, 1)
+        burst(e.x, 1.0f * e.scale, e.z, 10, K_SPARK, 4f, 0.07f, 1)
         kills++
+        fx.add(Fx(2, e.x, 0.9f * e.scale, e.z, 0.7f, 1.5f * e.scale))
+        screenFlash = max(screenFlash, if (e.type == 3) 0.6f else 0.2f)
         shake = max(shake, if (e.type == 3) 0.9f else 0.4f)
         vibrar(if (e.type == 3) 60 else 18)
         if (enemies.isEmpty() && state == S_PLAY) {
@@ -876,8 +953,8 @@ class Game3D(private val ctx: Context, private val density: Float) {
         stateT = 0f
         hurt = 1f
         shake = 1f
-        burst(px, 1.1f, pz, 40, K_BLACK, 5f, 0.1f)
-        burst(px, 1.1f, pz, 14, K_WHITE, 4f, 0.08f)
+        burst(px, 1.1f, pz, 40, K_BLACK, 5f, 0.1f, 1)
+        burst(px, 1.1f, pz, 14, K_WHITE, 4f, 0.08f, 1)
         vibrar(160)
         Prefs.registrar(ctx, room, kills)
     }

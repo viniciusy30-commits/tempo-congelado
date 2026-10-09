@@ -1,3 +1,13 @@
+#id 2026-10-09-a
+#titulo Gráficos redondos e tiros animados
+- Inimigos, pedaços e a arma agora são redondos, com brilho e luz de contorno
+- Sombras suaves e arredondadas no chão
+- Seu tiro deixa um rastro laranja luminoso; o dos inimigos é uma bola de fogo pulsante com rastro
+- Clarão de tiro, coice da arma e cartuchos caindo
+- Inimigos levantam a arma, carregam o tiro (com raio de mira) e dão coice ao atirar
+- Quando seu tiro bate num tiro inimigo: explosão com ondas de choque, faíscas e pausa de impacto
+- Inimigos explodem em pedaços redondos com onda de choque no chão
+
 #id 2026-10-08-b
 #titulo Agora em 3D!
 - Jogo refeito em primeira pessoa, com salas 3D, neblina e sombras
